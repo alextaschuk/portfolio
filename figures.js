@@ -14,16 +14,22 @@
   var personal = contrib.personal_timeline  || {};
   var totalTL  = contrib.total_timeline     || {};
   var skillAct = figures.skill_timeline || {};
+  var langBreakdown = figures.language_breakdown || {};
 
   var hasContrib = Object.keys(personal).length > 0 || Object.keys(totalTL).length > 0;
   var hasSkill   = Object.keys(skillAct).length > 0;
+  var hasLangs   = Object.keys(langBreakdown).length > 0;
 
-  if (!hasContrib && !hasSkill) {
+  if (!hasContrib && !hasSkill && !hasLangs) {
     var fig = document.getElementById('figures');
     if (fig) fig.style.display = 'none';
     return;
   }
 
+  if (hasLangs) {
+    var lbEl = document.getElementById('language-breakdown');
+    if (lbEl) buildLanguageDonut(lbEl, langBreakdown);
+  }
   if (hasContrib) {
     var cmEl = document.getElementById('contribution-map');
     if (cmEl) buildContributionMap(cmEl, personal, totalTL);
@@ -31,6 +37,85 @@
   if (hasSkill) {
     var stEl = document.getElementById('skill-timeline');
     if (stEl) buildSkillTimeline(stEl, skillAct);
+  }
+
+  // ==========================================================
+  // Language Breakdown Donut
+  // ==========================================================
+  function buildLanguageDonut(el, langs) {
+    var LANG_COLORS = {
+      'Python':     '#3572A5', 'JavaScript': '#f1e05a', 'TypeScript': '#3178c6',
+      'Java':       '#b07219', 'C++':        '#f34b7d', 'C':          '#555555',
+      'C#':         '#178600', 'PHP':        '#4F5D95', 'Ruby':       '#701516',
+      'Swift':      '#F05138', 'Go':         '#00ADD8', 'Rust':       '#DEA584',
+      'HTML':       '#e34c26', 'CSS':        '#563d7c', 'SQL':        '#e38c00',
+      'Shell':      '#89e051', 'R':          '#198CE7'
+    };
+    var FALLBACK_COLORS = ['#6EC4E8','#ff7c6f','#7cff9a','#ffd06f','#c06fff','#6fecff','#ff6fb8','#a8ff6f'];
+
+    var entries = Object.keys(langs).map(function(k){ return {lang:k, ratio:langs[k]}; });
+    var total = entries.reduce(function(s,e){ return s+e.ratio; }, 0);
+    if (total === 0) return;
+
+    var segments = entries.map(function(e, i) {
+      return {
+        lang:  e.lang,
+        ratio: e.ratio,
+        color: LANG_COLORS[e.lang] || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
+        pct:   (e.ratio / total) * 100
+      };
+    });
+
+    // Build conic-gradient stops
+    var cum = 0;
+    var stops = segments.map(function(s) {
+      var start = cum;
+      cum += s.pct;
+      return s.color + ' ' + start.toFixed(2) + '% ' + cum.toFixed(2) + '%';
+    });
+
+    el.className = 'figure-card';
+
+    var hdr = el.appendChild(document.createElement('div'));
+    hdr.style.cssText = 'margin-bottom:16px;';
+    var hTitle = hdr.appendChild(document.createElement('h3'));
+    hTitle.textContent = 'Language Breakdown';
+    hTitle.style.cssText = 'margin:0;font-size:1rem;font-weight:600;color:#111111;';
+
+    var wrap = el.appendChild(document.createElement('div'));
+    wrap.className = 'lang-donut-wrap';
+
+    // Donut chart
+    var chartDiv = wrap.appendChild(document.createElement('div'));
+    chartDiv.className = 'lang-donut-chart';
+
+    var circle = chartDiv.appendChild(document.createElement('div'));
+    circle.className = 'lang-donut-circle';
+    circle.style.background = 'conic-gradient(' + stops.join(', ') + ')';
+
+    var inner = chartDiv.appendChild(document.createElement('div'));
+    inner.className = 'lang-donut-inner';
+    inner.textContent = entries.length + ' lang' + (entries.length !== 1 ? 's' : '');
+
+    // Legend
+    var legend = wrap.appendChild(document.createElement('div'));
+    legend.className = 'lang-donut-legend';
+    segments.forEach(function(s) {
+      var item = legend.appendChild(document.createElement('div'));
+      item.className = 'lang-donut-legend-item';
+
+      var swatch = item.appendChild(document.createElement('div'));
+      swatch.className = 'lang-donut-swatch';
+      swatch.style.background = s.color;
+
+      var name = item.appendChild(document.createElement('span'));
+      name.className = 'lang-donut-name';
+      name.textContent = s.lang;
+
+      var pct = item.appendChild(document.createElement('span'));
+      pct.className = 'lang-donut-pct';
+      pct.textContent = s.pct.toFixed(1) + '%';
+    });
   }
 
   // ==========================================================
